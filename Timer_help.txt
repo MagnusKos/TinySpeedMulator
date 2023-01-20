@@ -1,0 +1,9 @@
+F_CPU = 4 800 000 / 256 = 18750 Hz
+
+Timer values:
+
+64 prescaler 255 = 0.5722
+    64 prescaler 31 = 4.5776
+8 prescaler 255 = 4.5776
+    8 prescaler 31 = 36.6211
+1 prescaler 255 = 36.6211

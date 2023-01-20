@@ -18,7 +18,7 @@ OCR0A for output freq control
 
 */
 
-#define SHUTDOWN 36000U       //Time to turn off, ssss.s
+#define SHUTDOWN 216000UL       //Time to turn off, ssss.s
 #define SPEEDUP 100         //Step-up time for increasing freq, ms
 #define SPEEDUP_SLOW 500    //Same, but for the setup mode
 
@@ -43,10 +43,10 @@ typedef enum
     timer_ext_rise   = 7
 } timer_clock_t;
 
-unsigned char divider=3;           //64 timer prescaler
-unsigned int  seconds_part=0;      //Uptime, ssss.s
-unsigned char compare=100;
-unsigned char setmode=0;
+unsigned char     divider=3;           //64 timer prescaler
+         uint32_t seconds_part=0;      //Uptime, ssss.s
+unsigned char     compare=100;
+unsigned char     setmode=0;
 
 ISR (INT0_vect)
 {
@@ -97,14 +97,15 @@ void rise_freq()
     unsigned char _div = (~0xF8 & TCCR0B);
     if (_div>1)
             if (OCR0A>31)
-                OCR0A  -=  ((2<<(_div+1))-1);
+                OCR0A  -=  ((2<<(_div))-1);
             else
             {
                 --_div;
                 OCR0A   =  255;
-                TCCR0B &=  0xF8 | (_div<<CS00);
+                TCCR0B &=  0xF8; TCCR0B |= (_div<<CS00);
             }
     else
+        if (OCR0A!=0)
             --OCR0A;
 }
 
@@ -113,12 +114,12 @@ void fall_freq()
     unsigned char _div = (~0xF8 & TCCR0B);
     if (_div>1)
             if (OCR0A<255)
-                OCR0A  +=  ((2<<(_div+1))-1);
+                OCR0A  +=  ((2<<(_div))-1);
             else
             {
                 ++_div;
                 OCR0A   =  31;
-                TCCR0B &=  0xF8 | (_div<<CS00);
+                TCCR0B &=  0xF8; TCCR0B |= (_div<<CS00);
             }
     else
         if (OCR0A!=255)
@@ -128,7 +129,7 @@ void fall_freq()
 void setloop()                      //setup mode, used to reconfigurate maximum output freq
 {
     divider =  3;
-    TCCR0B &=  0xF8 | (divider<<CS00);
+    TCCR0B &=  0xF8; TCCR0B |= (divider<<CS00);
     OCR0A   =  255;
     while (setmode)
     {
@@ -136,22 +137,31 @@ void setloop()                      //setup mode, used to reconfigurate maximum 
         _delay_ms(SPEEDUP_SLOW);
         if (divider>1)
             if (OCR0A>31)
-                OCR0A  -=  ((2<<(divider+1))-1);
+                OCR0A  -=  ((2<<(divider))-1);
             else
             {
                 --divider;
                 OCR0A   =  255;
-                TCCR0B &=  0xF8 | (divider<<CS00);
+                TCCR0B &=  0xF8; TCCR0B |= (divider<<CS00);
             }
         else
             if (OCR0A == 0)
             {
                 divider = 3;
                 OCR0A   =  255;
-                TCCR0B &=  0xF8 | (divider<<CS00);
+                TCCR0B &=  0xF8; TCCR0B |= (divider<<CS00);
             }
             else
                 --OCR0A;
+            
+            
+       if (divider==0)
+       {
+           divider =  3;
+           TCCR0B &=  0xF8; TCCR0B |= (divider<<CS00);
+           OCR0A   =  255;
+       }
+           
     }
     EEPROM_write(4, OCR0A);
     EEPROM_write(8, divider);
@@ -159,6 +169,7 @@ void setloop()                      //setup mode, used to reconfigurate maximum 
 
 void reload()
 {
+    TCCR0B &=  0xF8;  TCCR0B |= (3<<CS00);
     OCR0A=255;
     compare = EEPROM_read(4);
     divider = EEPROM_read(8);
@@ -234,12 +245,12 @@ int main()
             seconds_part++;
             if (seconds_part < SHUTDOWN)
             {
-                if ((OCR0A!=compare) && ((~0xF8 & TCCR0B) != divider))
+                if ((OCR0A!=compare) || ((~0xF8 & TCCR0B) != divider))
                     rise_freq();
             }
             else
             {
-                if ((OCR0A!=255) && ((~0xF8 & TCCR0B) != 1))
+                if ((OCR0A!=255) || ((~0xF8 & TCCR0B) != 1))
                     fall_freq();
                 else
                 {
