@@ -1,0 +1,3 @@
+ Legacy
+ It's working. Kinda...
+ Has some problems with a phantom powering, that comes from an pulse-wire, when where are externally-generated pulses on it.
